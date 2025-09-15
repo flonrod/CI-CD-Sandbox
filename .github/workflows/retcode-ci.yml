@@ -11,3 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test Check RETCODE Action
+        id: check_retcode
+        uses: ./.github/actions/check-retcode
+        with:
+          retcode: "3"
+          config_file: 'codes.json'
+          fail_on_warning: 'false'
