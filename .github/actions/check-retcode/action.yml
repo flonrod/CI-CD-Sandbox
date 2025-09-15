@@ -121,3 +121,30 @@ runs:
         
         # Variable para trackear si encontramos coincidencia
         found_match=false
+
+        # Iterar a través de los códigos configurados
+        while IFS= read -r config_line; do
+          range=$(echo "$config_line" | jq -r '.range')
+          status=$(echo "$config_line" | jq -r '.status')
+          title=$(echo "$config_line" | jq -r '.title')
+          message=$(echo "$config_line" | jq -r '.message')
+          base_should_fail=$(echo "$config_line" | jq -r '.should_fail')
+          
+          if in_range $RC_NUM "$range"; then
+            found_match=true
+            
+            # Determinar si debe fallar
+            should_fail="$base_should_fail"
+            if [[ "$status" == "warning" && "$FAIL_ON_WARNING" == "true" ]]; then
+              should_fail="true"
+            fi
+            
+            set_result "$status" "$message" "$should_fail" "$title"
+            
+            if [[ "$should_fail" == "true" ]]; then
+              exit 1
+            else
+              exit 0
+            fi
+          fi
+        done < <(jq -c '.codes[]' "$CONFIG_FILE")
