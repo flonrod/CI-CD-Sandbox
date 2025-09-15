@@ -1,0 +1,123 @@
+name: Check RETCODE
+description: Verifica códigos de retorno usando un lista en un archivo JSON
+
+inputs:
+  retcode:
+    description: Código de retorno a evaluar
+    required: true
+  config_file:
+    description: Ruta al archivo JSON de configuración
+    required: false
+    default: 'codes.json'
+  fail_on_warning:
+    description: Si debe fallar en advertencias (default: false)
+    required: false
+    default: 'false'
+
+outputs:
+  status:
+    description: Estado de la verificación
+    value: ${{ steps.check.outputs.status }}
+  message:
+    description: Mensaje descriptivo del resultado
+    value: ${{ steps.check.outputs.message }}
+  should_fail:
+    description: Si el workflow debe fallar (true/false)
+    value: ${{ steps.check.outputs.should_fail }}
+  title:
+    description: Título del resultado
+    value: ${{ steps.check.outputs.title }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check return code
+      id: check
+      shell: bash
+      run: |
+        set -euo pipefail
+        
+        # Variables de entrada
+        readonly RETCODE="${{ inputs.retcode }}"
+        readonly CONFIG_FILE="${{ inputs.config_file }}"
+        readonly FAIL_ON_WARNING="${{ inputs.fail_on_warning }}"
+        
+        # Convertir a base decimal (maneja ceros a la izquierda)
+        if ! RC_NUM=$((10#$RETCODE)) 2>/dev/null; then
+          echo "::error::Código de retorno inválido: $RETCODE"
+          exit 1
+        fi
+        readonly RC_NUM
+        
+        # Validar que sea un número válido (positivo o cero)
+        if [[ $RC_NUM -lt 0 ]]; then
+          echo "::error::Código de retorno debe ser positivo o cero: $RC_NUM"
+          exit 1
+        fi
+        
+        # Verificar que existe el archivo de configuración
+        if [[ ! -f "$CONFIG_FILE" ]]; then
+          echo "::error::Archivo de configuración no encontrado: $CONFIG_FILE"
+          exit 1
+        fi
+        
+        # Validar JSON
+        if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
+          echo "::error::Archivo JSON inválido: $CONFIG_FILE"
+          exit 1
+        fi
+        
+        echo "::group:: Configuración de verificación"
+        echo "Código de retorno: $RC_NUM"
+        echo "Archivo de configuración: $CONFIG_FILE"
+        echo "Fallar en advertencias: $FAIL_ON_WARNING"
+        
+        # Mostrar configuración cargada
+        echo "Rangos configurados:"
+        jq -r '.codes[] | "  \(.range): \(.title) - \(.message)"' "$CONFIG_FILE"
+        echo "::endgroup::"
+        
+        # Función para verificar si un número está en un rango
+        in_range() {
+          local num=$1
+          local range=$2
+          
+          if [[ -z "$range" ]]; then
+            return 1
+          fi
+          
+          # Verificar rango (ej. "6-8")
+          if [[ "$range" =~ ^([0-9]+)-([0-9]+)$ ]]; then
+            local start=${BASH_REMATCH[1]}
+            local end=${BASH_REMATCH[2]}
+            if [[ $num -ge $start && $num -le $end ]]; then
+              return 0
+            fi
+          # Verificar número simple (ej. "4")
+          elif [[ "$range" =~ ^[0-9]+$ ]] && [[ $num -eq $range ]]; then
+            return 0
+          fi
+          
+          return 1
+        }
+        
+        # Función para establecer outputs
+        set_result() {
+          local status="$1"
+          local message="$2"
+          local should_fail="$3"
+          local title="$4"
+          
+          # Expandir placeholders en el mensaje
+          message=$(echo "$message" | sed "s/{code}/$RC_NUM/g")
+          
+          {
+            echo "status=$status"
+            echo "message=$message"
+            echo "should_fail=$should_fail"
+            echo "title=$title"
+          } >> "$GITHUB_OUTPUT"
+        }
+        
+        # Variable para trackear si encontramos coincidencia
+        found_match=false

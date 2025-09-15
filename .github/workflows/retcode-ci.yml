@@ -1,0 +1,13 @@
+name: Test Check RETCODE Action
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "feature/check-retcode"
+
+jobs:
+  test-retcodes:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
