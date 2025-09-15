@@ -151,7 +151,7 @@ runs:
             else
               exit 0
             fi
-
+          fi
         done < <(jq -c '.codes[]' "$CONFIG_FILE")
 
         if [[ "$found_match" == "false" ]]; then
