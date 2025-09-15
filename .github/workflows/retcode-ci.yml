@@ -104,3 +104,61 @@ jobs:
             exit 1
           fi
           echo "✅ Error test passed for code ${{ matrix.retcode }}"
+
+
+  # Tests para fallback
+  test-fallback-cases:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - retcode: 10
+            type: "numeric"
+          - retcode: 15
+            type: "numeric"
+          - retcode: 99
+            type: "numeric"
+          - retcode: 255
+            type: "numeric"
+          - retcode: "abc"
+            type: "alphabetic"
+          - retcode: "xyz123"
+            type: "alphanumeric"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Test fallback code ${{ matrix.retcode }}
+        id: test-fallback
+        uses: ./.github/actions/check-retcode
+        continue-on-error: true
+        with:
+          retcode: ${{ matrix.retcode }}
+          config_file: '.github/actions/check-retcode/codes.json'
+          fail_on_warning: 'false'
+        
+      - name: Validate fallback result for ${{ matrix.type }} input
+        run: |
+          # For alphabetic inputs, the action should fail with an error before reaching fallback
+          if [[ "${{ matrix.type }}" == "alphabetic" || "${{ matrix.type }}" == "alphanumeric" ]]; then
+            if [ "${{ steps.test-fallback.outcome }}" != "failure" ]; then
+              echo "❌ Expected action to fail with invalid input: ${{ matrix.retcode }}"
+              exit 1
+            fi
+            echo "✅ Alphabetic input test passed - Action failed as expected for '${{ matrix.retcode }}'"
+          else
+            # For numeric inputs, check fallback behavior
+            if [ "${{ steps.test-fallback.outputs.status }}" != "critical" ]; then
+              echo "❌ Expected status 'critical', got '${{ steps.test-fallback.outputs.status }}'"
+              exit 1
+            fi
+            if [ "${{ steps.test-fallback.outputs.should_fail }}" != "true" ]; then
+              echo "❌ Expected should_fail 'true', got '${{ steps.test-fallback.outputs.should_fail }}'"
+              exit 1
+            fi
+            if [[ "${{ steps.test-fallback.outputs.message }}" != *"${{ matrix.retcode }}"* ]]; then
+              echo "❌ Message should contain return code ${{ matrix.retcode }}"
+              exit 1
+            fi
+            echo "✅ Fallback test passed for code ${{ matrix.retcode }}"
+          fi
