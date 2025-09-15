@@ -67,7 +67,7 @@ runs:
           exit 1
         fi
         
-        echo "::group:: Configuración de verificación"
+        echo "::group::Configuración de verificación"
         echo "Código de retorno: $RC_NUM"
         echo "Archivo de configuración: $CONFIG_FILE"
         echo "Fallar en advertencias: $FAIL_ON_WARNING"
