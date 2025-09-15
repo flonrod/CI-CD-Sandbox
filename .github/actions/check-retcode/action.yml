@@ -111,6 +111,11 @@ runs:
           # Expandir placeholders en el mensaje
           message=$(echo "$message" | sed "s/{code}/$RC_NUM/g")
           
+          echo "::group::Resultado: "
+          echo "Estado: $status"
+          echo "Mensaje: $message"
+          echo "¿Debería fallar? $should_fail"
+
           {
             echo "status=$status"
             echo "message=$message"
@@ -131,13 +136,30 @@ runs:
           range=$(echo "$config_line" | jq -r '.range')
           status=$(echo "$config_line" | jq -r '.status')
           title=$(echo "$config_line" | jq -r '.title')
-          
+          message=$(echo "$config_line" | jq -r '.message')
+          base_should_fail=$(echo "$config_line" | jq -r '.should_fail')
+
           echo "DEBUG: Extraído - range: '$range', status: '$status', title: '$title'"
           
           # Test de la función in_range
           if in_range $RC_NUM "$range"; then
             echo "DEBUG: ¡COINCIDENCIA! Código $RC_NUM está en rango '$range'"
-            # resto del código...
+            found_match=true
+            
+            # Determinar si debe fallar
+            should_fail="$base_should_fail"
+            if [[ "$status" == "warning" && "$FAIL_ON_WARNING" == "true" ]]; then
+              should_fail="true"
+            fi
+            
+            set_result "$status" "$message" "$should_fail" "$title"
+            
+            if [[ "$should_fail" == "true" ]]; then
+              exit 1
+            else
+              exit 0
+            fi
+
           else
             echo "DEBUG: No coincide - Código $RC_NUM NO está en rango '$range'"
           fi
