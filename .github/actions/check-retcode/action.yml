@@ -127,23 +127,15 @@ runs:
         # Variable para trackear si encontramos coincidencia
         found_match=false
 
-        echo "DEBUG: Iniciando loop para código: $RC_NUM"
-
         # Iterar a través de los códigos configurados
-        while IFS= read -r config_line; do
-          echo "DEBUG: Procesando línea: $config_line"
-          
+        while IFS= read -r config_line; do          
           range=$(echo "$config_line" | jq -r '.range')
           status=$(echo "$config_line" | jq -r '.status')
           title=$(echo "$config_line" | jq -r '.title')
           message=$(echo "$config_line" | jq -r '.message')
           base_should_fail=$(echo "$config_line" | jq -r '.should_fail')
-
-          echo "DEBUG: Extraído - range: '$range', status: '$status', title: '$title'"
           
-          # Test de la función in_range
           if in_range $RC_NUM "$range"; then
-            echo "DEBUG: ¡COINCIDENCIA! Código $RC_NUM está en rango '$range'"
             found_match=true
             
             # Determinar si debe fallar
@@ -160,14 +152,14 @@ runs:
               exit 0
             fi
 
-          else
-            echo "DEBUG: No coincide - Código $RC_NUM NO está en rango '$range'"
-          fi
-          
         done < <(jq -c '.codes[]' "$CONFIG_FILE")
 
-        echo "DEBUG: Loop terminado. found_match: $found_match"
-
-        echo "DEBUG: Salida de jq:"
-        jq -c '.codes[]' "$CONFIG_FILE"
-        echo "DEBUG: Fin salida jq"
+        if [[ "$found_match" == "false" ]]; then
+          fallback_status=$(jq -r '.fallback.status' "$CONFIG_FILE")
+          fallback_message=$(jq -r '.fallback.message' "$CONFIG_FILE")
+          fallback_should_fail=$(jq -r '.fallback.should_fail' "$CONFIG_FILE")
+          fallback_title=$(jq -r '.fallback.title' "$CONFIG_FILE")
+          
+          set_result "$fallback_status" "$fallback_message" "$fallback_should_fail" "$fallback_title"
+          exit 1
+        fi
