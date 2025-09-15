@@ -10,7 +10,7 @@ inputs:
     required: false
     default: 'codes.json'
   fail_on_warning:
-    description: Si debe fallar en advertencias (default: false)
+    description: Si debe fallar en advertencias
     required: false
     default: 'false'
 
