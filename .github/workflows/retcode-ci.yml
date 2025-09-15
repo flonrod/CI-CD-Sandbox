@@ -7,19 +7,100 @@ on:
       - "feature/check-retcode"
 
 jobs:
-  test-retcodes:
+  # Tests para casos de éxito
+  test-success-cases:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
-
+      matrix:
+        retcode: [0, 1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Test Check RETCODE Action
-        id: check_retcode
+        
+      - name: Test success code ${{ matrix.retcode }}
+        id: test-success
         uses: ./.github/actions/check-retcode
         with:
-          retcode: "3"
+          retcode: ${{ matrix.retcode }}
           config_file: '.github/actions/check-retcode/codes.json'
           fail_on_warning: 'false'
+        
+      - name: Validate success result
+        run: |
+          if [ "${{ steps.test-success.outputs.status }}" != "success" ]; then
+            echo "❌ Expected status 'success', got '${{ steps.test-success.outputs.status }}'"
+            exit 1
+          fi
+          if [ "${{ steps.test-success.outputs.should_fail }}" != "false" ]; then
+            echo "❌ Expected should_fail 'false', got '${{ steps.test-success.outputs.should_fail }}'"
+            exit 1
+          fi
+          echo "✅ Test passed for return code ${{ matrix.retcode }}"
+
+  # Tests para advertencias
+  test-warning-cases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Test warning code 4 (should not fail)
+        id: test-warning-no-fail
+        uses: ./.github/actions/check-retcode
+        with:
+          retcode: '4'
+          config_file: '.github/actions/check-retcode/test-configs/codes.json'
+          fail_on_warning: 'false'
+        
+      - name: Validate warning result (no fail)
+        run: |
+          if [ "${{ steps.test-warning-no-fail.outputs.status }}" != "warning" ]; then
+            echo "❌ Expected status 'warning', got '${{ steps.test-warning-no-fail.outputs.status }}'"
+            exit 1
+          fi
+          if [ "${{ steps.test-warning-no-fail.outputs.should_fail }}" != "false" ]; then
+            echo "❌ Expected should_fail 'false', got '${{ steps.test-warning-no-fail.outputs.should_fail }}'"
+            exit 1
+          fi
+          echo "✅ Warning test (no fail) passed"
+
+  # Tests para errores
+  test-error-cases:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - retcode: 5
+            expected_status: "failure"
+          - retcode: 6
+            expected_status: "severe"
+          - retcode: 7
+            expected_status: "severe"
+          - retcode: 8
+            expected_status: "severe"
+          - retcode: 9
+            expected_status: "critical"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Test error code ${{ matrix.retcode }}
+        id: test-error
+        uses: ./.github/actions/check-retcode
+        continue-on-error: true
+        with:
+          retcode: ${{ matrix.retcode }}
+          config_file: '.github/actions/check-retcode/test-configs/codes.json'
+          fail_on_warning: 'false'
+        
+      - name: Validate error result
+        run: |
+          if [ "${{ steps.test-error.outputs.status }}" != "${{ matrix.expected_status }}" ]; then
+            echo "❌ Expected status '${{ matrix.expected_status }}', got '${{ steps.test-error.outputs.status }}'"
+            exit 1
+          fi
+          if [ "${{ steps.test-error.outputs.should_fail }}" != "true" ]; then
+            echo "❌ Expected should_fail 'true', got '${{ steps.test-error.outputs.should_fail }}'"
+            exit 1
+          fi
+          echo "✅ Error test passed for code ${{ matrix.retcode }}"
