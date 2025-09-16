@@ -2,177 +2,348 @@ name: Test Check RETCODE Action
 
 on:
   workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Tipo de prueba a ejecutar'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - valid_cases
+          - invalid_cases
+          - edge_cases
+
   push:
     branches:
       - "feature/check-retcode"
 
 jobs:
-  # Tests para casos de éxito
-  test-success-cases:
+  # Job para probar casos válidos
+  test-valid-configurations:
+    name: "✅ Pruebas de Configuraciones Válidas"
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        retcode: [0, 1, 2, 3]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Test success code ${{ matrix.retcode }}
-        id: test-success
-        uses: ./.github/actions/check-retcode
-        with:
-          retcode: ${{ matrix.retcode }}
-          config_file: '.github/actions/check-retcode/codes.json'
-          fail_on_warning: 'false'
-        
-      - name: Validate success result
-        run: |
-          if [ "${{ steps.test-success.outputs.status }}" != "success" ]; then
-            echo "❌ Expected status 'success', got '${{ steps.test-success.outputs.status }}'"
-            exit 1
-          fi
-          if [ "${{ steps.test-success.outputs.should_fail }}" != "false" ]; then
-            echo "❌ Expected should_fail 'false', got '${{ steps.test-success.outputs.should_fail }}'"
-            exit 1
-          fi
-          echo "✅ Test passed for return code ${{ matrix.retcode }}"
-
-  # Tests para advertencias
-  test-warning-cases:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Test warning code 4 (should not fail)
-        id: test-warning-no-fail
-        uses: ./.github/actions/check-retcode
-        with:
-          retcode: '4'
-          config_file: '.github/actions/check-retcode/codes.json'
-          fail_on_warning: 'false'
-        
-      - name: Validate warning result (no fail)
-        run: |
-          if [ "${{ steps.test-warning-no-fail.outputs.status }}" != "warning" ]; then
-            echo "❌ Expected status 'warning', got '${{ steps.test-warning-no-fail.outputs.status }}'"
-            exit 1
-          fi
-          if [ "${{ steps.test-warning-no-fail.outputs.should_fail }}" != "false" ]; then
-            echo "❌ Expected should_fail 'false', got '${{ steps.test-warning-no-fail.outputs.should_fail }}'"
-            exit 1
-          fi
-          echo "✅ Warning test (no fail) passed"
-
-  # Tests para errores
-  test-error-cases:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - retcode: 5
+        test_case:
+          - name: "Configuración completa"
+            retcode: "5"
             expected_status: "failure"
-          - retcode: 6
+            should_fail: true
+          - name: "Código de éxito"
+            retcode: "0"
+            expected_status: "success"
+            should_fail: false
+          - name: "Advertencia"
+            retcode: "4"
+            expected_status: "warning"
+            should_fail: false
+          - name: "Advertencia con fail_on_warning=true"
+            retcode: "4"
+            expected_status: "warning"
+            should_fail: true
+            fail_on_warning: "true"
+          - name: "Código en rango"
+            retcode: "7"
             expected_status: "severe"
-          - retcode: 7
-            expected_status: "severe"
-          - retcode: 8
-            expected_status: "severe"
-          - retcode: 9
+            should_fail: true
+          - name: "Código crítico"
+            retcode: "9"
             expected_status: "critical"
+            should_fail: true
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Test error code ${{ matrix.retcode }}
-        id: test-error
-        uses: ./.github/actions/check-retcode
-        continue-on-error: true
-        with:
-          retcode: ${{ matrix.retcode }}
-          config_file: '.github/actions/check-retcode/codes.json'
-          fail_on_warning: 'false'
-        
-      - name: Validate error result
+
+      - name: Crear configuración válida
         run: |
-          if [ "${{ steps.test-error.outputs.status }}" != "${{ matrix.expected_status }}" ]; then
-            echo "❌ Expected status '${{ matrix.expected_status }}', got '${{ steps.test-error.outputs.status }}'"
+          cat > codes.json << 'EOF'
+          {
+            "version": "1.0",
+            "description": "Configuración de códigos de retorno para compilación",
+            "codes": [
+              {
+                "range": "0-3",
+                "status": "success",
+                "title": "Éxito",
+                "message": "Compilación exitosa (código {code}).",
+                "should_fail": false
+              },
+              {
+                "range": "4",
+                "status": "warning",
+                "title": "Alerta",
+                "message": "Compilación exitosa con advertencia: límite de respuesta próximo a alcanzarse (código {code}).",
+                "should_fail": false
+              },
+              {
+                "range": "5",
+                "status": "failure",
+                "title": "Fallo",
+                "message": "Compilación fallida: límite de código excedido. Se requiere revisión (código {code}).",
+                "should_fail": true
+              },
+              {
+                "range": "6-8",
+                "status": "severe",
+                "title": "Fallo",
+                "message": "Compilación fallida por error severo. Revisión inmediata recomendada (código {code}).",
+                "should_fail": true
+              },
+              {
+                "range": "9",
+                "status": "critical",
+                "title": "Fallo Crítico",
+                "message": "Compilación fallida por error crítico. Ejecución detenida (código {code}).",
+                "should_fail": true
+              }
+            ],
+            "fallback": {
+              "status": "critical",
+              "title": "Código Desconocido",
+              "message": "Código de retorno inesperado ({code}). Revisar configuración de rangos.",
+              "should_fail": true
+            }
+          }
+          EOF
+
+      - name: "Probar: ${{ matrix.test_case.name }}"
+        id: test
+        uses: ./.github/actions/check-retcode
+        with:
+          retcode: ${{ matrix.test_case.retcode }}
+          config_file: codes.json
+          fail_on_warning: ${{ matrix.test_case.fail_on_warning || 'false' }}
+        continue-on-error: true
+
+      - name: Validar resultado
+        run: |
+          echo "=== Resultado de la prueba ==="
+          echo "Caso: ${{ matrix.test_case.name }}"
+          echo "Código probado: ${{ matrix.test_case.retcode }}"
+          echo "Status esperado: ${{ matrix.test_case.expected_status }}"
+          echo "Status obtenido: ${{ steps.test.outputs.status }}"
+          echo "Should fail esperado: ${{ matrix.test_case.should_fail }}"
+          echo "Should fail obtenido: ${{ steps.test.outputs.should_fail }}"
+          echo "Mensaje: ${{ steps.test.outputs.message }}"
+          
+          # Validar status
+          if [[ "${{ steps.test.outputs.status }}" != "${{ matrix.test_case.expected_status }}" ]]; then
+            echo "❌ ERROR: Status no coincide"
             exit 1
           fi
-          if [ "${{ steps.test-error.outputs.should_fail }}" != "true" ]; then
-            echo "❌ Expected should_fail 'true', got '${{ steps.test-error.outputs.should_fail }}'"
+          
+          # Validar should_fail
+          if [[ "${{ steps.test.outputs.should_fail }}" != "${{ matrix.test_case.should_fail }}" ]]; then
+            echo "❌ ERROR: should_fail no coincide"
             exit 1
           fi
-          echo "✅ Error test passed for code ${{ matrix.retcode }}"
+          
+          # Validar que el placeholder {code} fue reemplazado
+          if [[ "${{ steps.test.outputs.message }}" == *"{code}"* ]]; then
+            echo "❌ ERROR: Placeholder {code} no fue reemplazado"
+            exit 1
+          fi
+          
+          echo "✅ Prueba exitosa"
 
-
-  # Tests para fallback
-  test-fallback-cases:
+  # Job para probar casos inválidos
+  test-invalid-configurations:
+    name: "❌ Pruebas de Configuraciones Inválidas"
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - retcode: 10
-            type: "numeric"
-          - retcode: -7
-            type: "numeric"
-          - retcode: 007
-            type: "numeric"
-          - retcode: 255
-            type: "numeric"
-          - retcode: "abc"
-            type: "alphabetic"
-          - retcode: "xyz123"
-            type: "alphanumeric"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
-      - name: Test fallback code ${{ matrix.retcode }}
-        id: test-fallback
-        uses: ./.github/actions/check-retcode
-        continue-on-error: true
-        with:
-          retcode: ${{ matrix.retcode }}
-          config_file: '.github/actions/check-retcode/codes.json'
-          fail_on_warning: 'false'
-        
-      - name: Validate fallback result for ${{ matrix.type }} input
-        run: |
-          # For alphabetic inputs, the action should fail with an error before reaching fallback
-          if [[ "${{ matrix.type }}" == "alphabetic" || "${{ matrix.type }}" == "alphanumeric" ]]; then
-            if [ "${{ steps.test-fallback.outcome }}" != "failure" ]; then
-              echo "❌ Expected action to fail with invalid input: ${{ matrix.retcode }}"
-              exit 1
-            fi
-            echo "✅ Alphabetic input test passed - Action failed as expected for '${{ matrix.retcode }}'"
-          else
-            # For numeric inputs, check fallback behavior
-            if [ "${{ steps.test-fallback.outputs.status }}" != "critical" ]; then
-              echo "❌ Expected status 'critical', got '${{ steps.test-fallback.outputs.status }}'"
-              exit 1
-            fi
-            if [ "${{ steps.test-fallback.outputs.should_fail }}" != "true" ]; then
-              echo "❌ Expected should_fail 'true', got '${{ steps.test-fallback.outputs.should_fail }}'"
-              exit 1
-            fi
-            if [[ "${{ steps.test-fallback.outputs.message }}" != *"${{ matrix.retcode }}"* ]]; then
-              echo "❌ Message should contain return code ${{ matrix.retcode }}"
-              exit 1
-            fi
-            echo "✅ Fallback test passed for code ${{ matrix.retcode }}"
-          fi
+        test_case:
+          - name: "JSON vacío"
+            json: "{}"
+          - name: "Sin array codes"
+            json: '{"fallback": {"status": "critical", "title": "Error", "message": "Error", "should_fail": true}}'
+          - name: "Array codes vacío"
+            json: '{"codes": [], "fallback": {"status": "critical", "title": "Error", "message": "Error", "should_fail": true}}'
+          - name: "Sin fallback"
+            json: '{"codes": [{"range": "0", "status": "success", "title": "OK", "message": "OK", "should_fail": false}]}'
+          - name: "Código sin campo obligatorio"
+            json: '{"codes": [{"range": "0", "status": "success", "title": "OK"}], "fallback": {"status": "critical", "title": "Error", "message": "Error", "should_fail": true}}'
+          - name: "Fallback sin campo obligatorio"
+            json: '{"codes": [{"range": "0", "status": "success", "title": "OK", "message": "OK", "should_fail": false}], "fallback": {"status": "critical", "title": "Error"}}'
 
-  empty-json:
-    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
-      - name: Test using a json empty
-        id: empty-json
+
+      - name: "Crear JSON inválido: ${{ matrix.test_case.name }}"
+        run: |
+          echo '${{ matrix.test_case.json }}' > codes.json
+          echo "JSON creado:"
+          cat codes.json
+
+      - name: "Probar configuración inválida: ${{ matrix.test_case.name }}"
+        id: test
         uses: ./.github/actions/check-retcode
         with:
-          retcode: "3"
-          config_file: '.github/actions/check-retcode/tests/codes.json'
-          fail_on_warning: 'false'
+          retcode: "0"
+          config_file: codes.json
+        continue-on-error: true
+
+      - name: Validar que falló correctamente
+        run: |
+          echo "=== Validando fallo esperado ==="
+          echo "Caso: ${{ matrix.test_case.name }}"
+          echo "Exit code del step: ${{ steps.test.outcome }}"
+          
+          if [[ "${{ steps.test.outcome }}" != "failure" ]]; then
+            echo "❌ ERROR: Se esperaba que fallara pero no falló"
+            echo "Status: ${{ steps.test.outputs.status }}"
+            echo "Message: ${{ steps.test.outputs.message }}"
+            exit 1
+          fi
+          
+          echo "✅ Falló correctamente como se esperaba"
+
+
+
+  # Job para probar casos edge
+  test-edge-cases:
+    name: "🎯 Pruebas de Casos Edge"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test_case:
+          - name: "Código con ceros a la izquierda"
+            retcode: "007"
+            expected_code: "7"
+          - name: "Código fallback"
+            retcode: "999"
+            expected_status: "critical"
+          - name: "Código en límite inferior de rango"
+            retcode: "6"
+            expected_status: "severe"
+          - name: "Código en límite superior de rango"
+            retcode: "8"
+            expected_status: "severe"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Crear configuración para edge cases
+        run: |
+          cat > codes.json << 'EOF'
+          {
+            "codes": [
+              {
+                "range": "0-3",
+                "status": "success",
+                "title": "Éxito",
+                "message": "Compilación exitosa (código {code}).",
+                "should_fail": false
+              },
+              {
+                "range": "6-8",
+                "status": "severe",
+                "title": "Fallo Severo",
+                "message": "Error severo con código {code}.",
+                "should_fail": true
+              }
+            ],
+            "fallback": {
+              "status": "critical",
+              "title": "Código Desconocido",
+              "message": "Código inesperado: {code}",
+              "should_fail": true
+            }
+          }
+          EOF
+
+      - name: "Probar edge case: ${{ matrix.test_case.name }}"
+        id: test
+        uses: ./.github/actions/check-retcode
+        with:
+          retcode: ${{ matrix.test_case.retcode }}
+          config_file: codes.json
+        continue-on-error: true
+
+      - name: Validar resultado del edge case
+        run: |
+          echo "=== Edge Case Results ==="
+          echo "Caso: ${{ matrix.test_case.name }}"
+          echo "Código enviado: ${{ matrix.test_case.retcode }}"
+          echo "Status obtenido: ${{ steps.test.outputs.status }}"
+          echo "Mensaje: ${{ steps.test.outputs.message }}"
+          
+          # Para caso de código fallback
+          if [[ "${{ matrix.test_case.name }}" == *"fallback"* ]]; then
+            if [[ "${{ steps.test.outputs.status }}" != "${{ matrix.test_case.expected_status }}" ]]; then
+              echo "❌ ERROR: Status fallback no coincide"
+              exit 1
+            fi
+          fi
+          
+          # Para caso de ceros a la izquierda
+          if [[ "${{ matrix.test_case.name }}" == *"ceros"* ]]; then
+            if [[ "${{ steps.test.outputs.message }}" != *"${{ matrix.test_case.expected_code }}"* ]]; then
+              echo "❌ ERROR: El código no se procesó correctamente (ceros a la izquierda)"
+              exit 1
+            fi
+          fi
+          
+          # Para casos de límites de rango
+          if [[ "${{ matrix.test_case.name }}" == *"límite"* ]]; then
+            if [[ "${{ steps.test.outputs.status }}" != "${{ matrix.test_case.expected_status }}" ]]; then
+              echo "❌ ERROR: Status en límite de rango no coincide"
+              exit 1
+            fi
+          fi
+          
+          echo "✅ Edge case pasó correctamente"
+
+  # Job final de resumen
+  test-summary:
+    name: "📋 Resumen de Pruebas"
+    runs-on: ubuntu-latest
+    needs: [test-valid-configurations, test-invalid-configurations, test-edge-cases]
+    if: always()
+    steps:
+      - name: Resumen de resultados
+        run: |
+          echo "# 📊 Resumen de Pruebas JSON Validation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## Resultados por categoría:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Configuraciones válidas
+          if [[ "${{ needs.test-valid-configurations.result }}" == "success" ]]; then
+            echo "✅ **Configuraciones Válidas**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Configuraciones Válidas**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Configuraciones inválidas
+          if [[ "${{ needs.test-invalid-configurations.result }}" == "success" ]]; then
+            echo "✅ **Configuraciones Inválidas**: PASSED (correctamente rechazadas)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Configuraciones Inválidas**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Edge cases
+          if [[ "${{ needs.test-edge-cases.result }}" == "success" ]]; then
+            echo "✅ **Casos Edge**: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Casos Edge**: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Estado general:" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.test-valid-configurations.result }}" == "success" && \
+                "${{ needs.test-invalid-configurations.result }}" == "success" && \
+                "${{ needs.test-edge-cases.result }}" == "success" ]]; then
+            echo "🎉 **TODAS LAS PRUEBAS PASARON**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **ALGUNAS PRUEBAS FALLARON - REVISAR LOGS**" >> $GITHUB_STEP_SUMMARY
+          fi

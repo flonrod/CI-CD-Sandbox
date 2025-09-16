@@ -66,6 +66,43 @@ runs:
           echo "::error::Archivo JSON inválido: $CONFIG_FILE"
           exit 1
         fi
+
+        # Validar estructura del JSON
+        echo "::group::Validando estructura del JSON"
+        
+        # Verificar que existe el array 'codes'
+        if ! jq -e '.codes' "$CONFIG_FILE" >/dev/null 2>&1; then
+          echo "::error::El archivo JSON no contiene el array 'codes' requerido"
+          exit 1
+        fi
+        
+        # Verificar que 'codes' es un array
+        if [[ $(jq -r 'type_of(.codes)' "$CONFIG_FILE") != "array" ]]; then
+          echo "::error::El campo 'codes' debe ser un array"
+          exit 1
+        fi
+        
+        # Verificar que el array no está vacío
+        codes_count=$(jq -r '.codes | length' "$CONFIG_FILE")
+        if [[ $codes_count -eq 0 ]]; then
+          echo "::error::El array 'codes' está vacío. Se requiere al menos una configuración de código"
+          exit 1
+        fi
+        
+        # Verificar que existe la configuración 'fallback'
+        if ! jq -e '.fallback' "$CONFIG_FILE" >/dev/null 2>&1; then
+          echo "::error::El archivo JSON no contiene la configuración 'fallback' requerida"
+          exit 1
+        fi
+        
+        # Verificar campos obligatorios en fallback
+        required_fallback_fields=("status" "title" "message" "should_fail")
+        for field in "${required_fallback_fields[@]}"; do
+          if ! jq -e ".fallback.$field" "$CONFIG_FILE" >/dev/null 2>&1; then
+            echo "::error::Campo obligatorio faltante en fallback: $field"
+            exit 1
+          fi
+        done
         
         echo "::group::Configuración de verificación"
         echo "Código de retorno: $RC_NUM"
