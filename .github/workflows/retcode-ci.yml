@@ -114,9 +114,9 @@ jobs:
         include:
           - retcode: 10
             type: "numeric"
-          - retcode: 15
+          - retcode: -7
             type: "numeric"
-          - retcode: 99
+          - retcode: 007
             type: "numeric"
           - retcode: 255
             type: "numeric"
@@ -162,3 +162,17 @@ jobs:
             fi
             echo "✅ Fallback test passed for code ${{ matrix.retcode }}"
           fi
+
+  empty-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Test using a json empty
+        id: empty-json
+        uses: ./.github/actions/check-retcode
+        with:
+          retcode: "3"
+          config_file: '.github/actions/check-retcode/tests/codes.json'
+          fail_on_warning: 'false'
