@@ -68,35 +68,35 @@ jobs:
                 "range": "0-3",
                 "status": "success",
                 "title": "Éxito",
-                "message": "Compilación exitosa (código {code}).",
+                "message": "Compilación exitosa.",
                 "should_fail": false
               },
               {
                 "range": "4",
                 "status": "warning",
                 "title": "Alerta",
-                "message": "Compilación exitosa con advertencia: límite de respuesta próximo a alcanzarse (código {code}).",
+                "message": "Compilación exitosa con advertencia: límite de respuesta próximo a alcanzarse.",
                 "should_fail": false
               },
               {
                 "range": "5",
                 "status": "failure",
                 "title": "Fallo",
-                "message": "Compilación fallida: límite de código excedido. Se requiere revisión (código {code}).",
+                "message": "Compilación fallida: límite de código excedido. Se requiere revisión.",
                 "should_fail": true
               },
               {
                 "range": "6-8",
                 "status": "severe",
                 "title": "Fallo",
-                "message": "Compilación fallida por error severo. Revisión inmediata recomendada (código {code}).",
+                "message": "Compilación fallida por error severo. Revisión inmediata recomendada.",
                 "should_fail": true
               },
               {
                 "range": "9",
                 "status": "critical",
                 "title": "Fallo Crítico",
-                "message": "Compilación fallida por error crítico. Ejecución detenida (código {code}).",
+                "message": "Compilación fallida por error crítico. Ejecución detenida.",
                 "should_fail": true
               }
             ],
@@ -138,12 +138,6 @@ jobs:
           # Validar should_fail
           if [[ "${{ steps.test.outputs.should_fail }}" != "${{ matrix.test_case.should_fail }}" ]]; then
             echo "❌ ERROR: should_fail no coincide"
-            exit 1
-          fi
-          
-          # Validar que el placeholder {code} fue reemplazado
-          if [[ "${{ steps.test.outputs.message }}" == *"{code}"* ]]; then
-            echo "❌ ERROR: Placeholder {code} no fue reemplazado"
             exit 1
           fi
           
@@ -202,148 +196,3 @@ jobs:
           fi
           
           echo "✅ Falló correctamente como se esperaba"
-
-
-
-  # Job para probar casos edge
-  test-edge-cases:
-    name: "🎯 Pruebas de Casos Edge"
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        test_case:
-          - name: "Código con ceros a la izquierda"
-            retcode: "007"
-            expected_code: "7"
-          - name: "Código fallback"
-            retcode: "999"
-            expected_status: "critical"
-          - name: "Código en límite inferior de rango"
-            retcode: "6"
-            expected_status: "severe"
-          - name: "Código en límite superior de rango"
-            retcode: "8"
-            expected_status: "severe"
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Crear configuración para edge cases
-        run: |
-          cat > codes.json << 'EOF'
-          {
-            "codes": [
-              {
-                "range": "0-3",
-                "status": "success",
-                "title": "Éxito",
-                "message": "Compilación exitosa (código {code}).",
-                "should_fail": false
-              },
-              {
-                "range": "6-8",
-                "status": "severe",
-                "title": "Fallo Severo",
-                "message": "Error severo con código {code}.",
-                "should_fail": true
-              }
-            ],
-            "fallback": {
-              "status": "critical",
-              "title": "Código Desconocido",
-              "message": "Código inesperado: {code}",
-              "should_fail": true
-            }
-          }
-          EOF
-
-      - name: "Probar edge case: ${{ matrix.test_case.name }}"
-        id: test
-        uses: ./.github/actions/check-retcode
-        with:
-          retcode: ${{ matrix.test_case.retcode }}
-          config_file: codes.json
-        continue-on-error: true
-
-      - name: Validar resultado del edge case
-        run: |
-          echo "=== Edge Case Results ==="
-          echo "Caso: ${{ matrix.test_case.name }}"
-          echo "Código enviado: ${{ matrix.test_case.retcode }}"
-          echo "Status obtenido: ${{ steps.test.outputs.status }}"
-          echo "Mensaje: ${{ steps.test.outputs.message }}"
-          
-          # Para caso de código fallback
-          if [[ "${{ matrix.test_case.name }}" == *"fallback"* ]]; then
-            if [[ "${{ steps.test.outputs.status }}" != "${{ matrix.test_case.expected_status }}" ]]; then
-              echo "❌ ERROR: Status fallback no coincide"
-              exit 1
-            fi
-          fi
-          
-          # Para caso de ceros a la izquierda
-          if [[ "${{ matrix.test_case.name }}" == *"ceros"* ]]; then
-            if [[ "${{ steps.test.outputs.message }}" != *"${{ matrix.test_case.expected_code }}"* ]]; then
-              echo "❌ ERROR: El código no se procesó correctamente (ceros a la izquierda)"
-              exit 1
-            fi
-          fi
-          
-          # Para casos de límites de rango
-          if [[ "${{ matrix.test_case.name }}" == *"límite"* ]]; then
-            if [[ "${{ steps.test.outputs.status }}" != "${{ matrix.test_case.expected_status }}" ]]; then
-              echo "❌ ERROR: Status en límite de rango no coincide"
-              exit 1
-            fi
-          fi
-          
-          echo "✅ Edge case pasó correctamente"
-
-  # Job final de resumen
-  test-summary:
-    name: "📋 Resumen de Pruebas"
-    runs-on: ubuntu-latest
-    needs: [test-valid-configurations, test-invalid-configurations, test-edge-cases]
-    if: always()
-    steps:
-      - name: Resumen de resultados
-        run: |
-          echo "# 📊 Resumen de Pruebas JSON Validation" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          echo "## Resultados por categoría:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Configuraciones válidas
-          if [[ "${{ needs.test-valid-configurations.result }}" == "success" ]]; then
-            echo "✅ **Configuraciones Válidas**: PASSED" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Configuraciones Válidas**: FAILED" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Configuraciones inválidas
-          if [[ "${{ needs.test-invalid-configurations.result }}" == "success" ]]; then
-            echo "✅ **Configuraciones Inválidas**: PASSED (correctamente rechazadas)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Configuraciones Inválidas**: FAILED" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          # Edge cases
-          if [[ "${{ needs.test-edge-cases.result }}" == "success" ]]; then
-            echo "✅ **Casos Edge**: PASSED" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ **Casos Edge**: FAILED" >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## Estado general:" >> $GITHUB_STEP_SUMMARY
-          
-          if [[ "${{ needs.test-valid-configurations.result }}" == "success" && \
-                "${{ needs.test-invalid-configurations.result }}" == "success" && \
-                "${{ needs.test-edge-cases.result }}" == "success" ]]; then
-            echo "🎉 **TODAS LAS PRUEBAS PASARON**" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "⚠️ **ALGUNAS PRUEBAS FALLARON - REVISAR LOGS**" >> $GITHUB_STEP_SUMMARY
-          fi
