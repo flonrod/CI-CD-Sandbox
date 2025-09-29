@@ -1,5 +1,5 @@
 name: Check RETCODE
-description: Verifica códigos de retorno usando un lista en un archivo JSON
+description: Verifica códigos de retorno usando una lista en un archivo JSON
 
 inputs:
   retcode:
@@ -9,10 +9,6 @@ inputs:
     description: Ruta al archivo JSON de configuración
     required: false
     default: 'codes.json'
-  fail_on_warning:
-    description: Si debe fallar en advertencias
-    required: false
-    default: 'false'
 
 outputs:
   status:
@@ -35,168 +31,6 @@ runs:
       id: check
       shell: bash
       run: |
-        set -euo pipefail
-        
-        # Variables de entrada
-        readonly RETCODE="${{ inputs.retcode }}"
-        readonly CONFIG_FILE="${{ inputs.config_file }}"
-        readonly FAIL_ON_WARNING="${{ inputs.fail_on_warning }}"
-        
-        # Convertir a base decimal (maneja ceros a la izquierda)
-        if ! RC_NUM=$((10#$RETCODE)) 2>/dev/null; then
-          echo "::error::Código de retorno inválido: $RETCODE"
-          exit 1
-        fi
-        readonly RC_NUM
-        
-        # Validar que sea un número válido (positivo o cero)
-        if [[ $RC_NUM -lt 0 ]]; then
-          echo "::error::Código de retorno debe ser positivo o cero: $RC_NUM"
-          exit 1
-        fi
-        
-        # Verificar que existe el archivo de configuración
-        if [[ ! -f "$CONFIG_FILE" ]]; then
-          echo "::error::Archivo de configuración no encontrado: $CONFIG_FILE"
-          exit 1
-        fi
-        
-        # Validar JSON
-        if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
-          echo "::error::Archivo JSON inválido: $CONFIG_FILE"
-          exit 1
-        fi
-
-        # Validar estructura del JSON
-        echo "::group::Validando estructura del JSON"
-        
-        # Verificar que existe el array 'codes'
-        if ! jq -e '.codes' "$CONFIG_FILE" >/dev/null 2>&1; then
-          echo "::error::El archivo JSON no contiene el array 'codes' requerido"
-          exit 1
-        fi
-        
-        # Verificar que 'codes' es un array
-        if [[ $(jq -r 'type_of(.codes)' "$CONFIG_FILE") != "array" ]]; then
-          echo "::error::El campo 'codes' debe ser un array"
-          exit 1
-        fi
-        
-        # Verificar que el array no está vacío
-        codes_count=$(jq -r '.codes | length' "$CONFIG_FILE")
-        if [[ $codes_count -eq 0 ]]; then
-          echo "::error::El array 'codes' está vacío. Se requiere al menos una configuración de código"
-          exit 1
-        fi
-        
-        # Verificar que existe la configuración 'fallback'
-        if ! jq -e '.fallback' "$CONFIG_FILE" >/dev/null 2>&1; then
-          echo "::error::El archivo JSON no contiene la configuración 'fallback' requerida"
-          exit 1
-        fi
-        
-        # Verificar campos obligatorios en fallback
-        required_fallback_fields=("status" "title" "message" "should_fail")
-        for field in "${required_fallback_fields[@]}"; do
-          if ! jq -e ".fallback.$field" "$CONFIG_FILE" >/dev/null 2>&1; then
-            echo "::error::Campo obligatorio faltante en fallback: $field"
-            exit 1
-          fi
-        done
-        
-        echo "::group::Configuración de verificación"
-        echo "Código de retorno: $RC_NUM"
-        echo "Archivo de configuración: $CONFIG_FILE"
-        echo "Fallar en advertencias: $FAIL_ON_WARNING"
-        
-        # Mostrar configuración cargada
-        echo "Rangos configurados:"
-        jq -r '.codes[] | "  \(.range): \(.title) - \(.message)"' "$CONFIG_FILE"
-        echo "::endgroup::"
-        
-        # Función para verificar si un número está en un rango
-        in_range() {
-          local num=$1
-          local range=$2
-          
-          if [[ -z "$range" ]]; then
-            return 1
-          fi
-          
-          # Verificar rango (ej. "6-8")
-          if [[ "$range" =~ ^([0-9]+)-([0-9]+)$ ]]; then
-            local start=${BASH_REMATCH[1]}
-            local end=${BASH_REMATCH[2]}
-            if [[ $num -ge $start && $num -le $end ]]; then
-              return 0
-            fi
-          # Verificar número simple (ej. "4")
-          elif [[ "$range" =~ ^[0-9]+$ ]] && [[ $num -eq $range ]]; then
-            return 0
-          fi
-          
-          return 1
-        }
-        
-        # Función para establecer outputs
-        set_result() {
-          local status="$1"
-          local message="$2"
-          local should_fail="$3"
-          local title="$4"
-          
-          # Expandir placeholders en el mensaje
-          message=$(echo "$message" | sed "s/{code}/$RC_NUM/g")
-          
-          echo "::group::Resultado: "
-          echo "Estado: $status"
-          echo "Mensaje: $message"
-          echo "¿Debería fallar? $should_fail"
-
-          {
-            echo "status=$status"
-            echo "message=$message"
-            echo "should_fail=$should_fail"
-            echo "title=$title"
-          } >> "$GITHUB_OUTPUT"
-        }
-        
-        # Variable para trackear si encontramos coincidencia
-        found_match=false
-
-        # Iterar a través de los códigos configurados
-        while IFS= read -r config_line; do          
-          range=$(echo "$config_line" | jq -r '.range')
-          status=$(echo "$config_line" | jq -r '.status')
-          title=$(echo "$config_line" | jq -r '.title')
-          message=$(echo "$config_line" | jq -r '.message')
-          base_should_fail=$(echo "$config_line" | jq -r '.should_fail')
-          
-          if in_range $RC_NUM "$range"; then
-            found_match=true
-            
-            # Determinar si debe fallar
-            should_fail="$base_should_fail"
-            if [[ "$status" == "warning" && "$FAIL_ON_WARNING" == "true" ]]; then
-              should_fail="true"
-            fi
-            
-            set_result "$status" "$message" "$should_fail" "$title"
-            
-            if [[ "$should_fail" == "true" ]]; then
-              exit 1
-            else
-              exit 0
-            fi
-          fi
-        done < <(jq -c '.codes[]' "$CONFIG_FILE")
-
-        if [[ "$found_match" == "false" ]]; then
-          fallback_status=$(jq -r '.fallback.status' "$CONFIG_FILE")
-          fallback_message=$(jq -r '.fallback.message' "$CONFIG_FILE")
-          fallback_should_fail=$(jq -r '.fallback.should_fail' "$CONFIG_FILE")
-          fallback_title=$(jq -r '.fallback.title' "$CONFIG_FILE")
-          
-          set_result "$fallback_status" "$fallback_message" "$fallback_should_fail" "$fallback_title"
-          exit 1
-        fi
+        chmod +x "${{ github.action_path }}/check-retcode.sh"
+        chmod +x "${{ github.action_path }}/validate-config.sh"
+        "${{ github.action_path }}/check-retcode.sh" "${{ inputs.retcode }}" "${{ inputs.config_file }}"
