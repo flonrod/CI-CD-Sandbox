@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      matrix:
+        retcode: [0, 3, 4, 5, 9, 99]
+
 
     steps:
       - name: Checkout
@@ -20,5 +23,11 @@ jobs:
         id: check_retcode
         uses: ./.github/actions/check-retcode
         with:
-          retcode: "3"
+          retcode: "${{ matrix.retcode }}"
           config_file: './.github/actions/check-retcode/codes.json'
+
+      - name: Print outputs
+        run: |
+          echo "Status: ${{ steps.check_retcode.outputs.status }}"
+          echo "Message: ${{ steps.check_retcode.outputs.message }}"
+          echo "Title: ${{ steps.check_retcode.outputs.title }}"
