@@ -17,9 +17,6 @@ outputs:
   message:
     description: Mensaje descriptivo del resultado
     value: ${{ steps.check.outputs.message }}
-  should_fail:
-    description: Si el workflow debe fallar (true/false)
-    value: ${{ steps.check.outputs.should_fail }}
   title:
     description: Título del resultado
     value: ${{ steps.check.outputs.title }}

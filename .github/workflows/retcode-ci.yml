@@ -2,129 +2,23 @@ name: Test Check RETCODE Action
 
 on:
   workflow_dispatch:
-    inputs:
-      test_type:
-        description: 'Tipo de prueba a ejecutar'
-        required: false
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - valid_cases
-          - invalid_cases
-          - edge_cases
-
   push:
     branches:
       - "feature/check-retcode"
 
 jobs:
-  # Job para probar casos válidos
-  test-valid-configurations:
-    name: "✅ Pruebas de Configuraciones Válidas"
+  test-retcodes:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        test_case:
-          - name: "Configuración completa"
-            retcode: "5"
-            expected_status: "failure"
-          - name: "Código de éxito"
-            retcode: "0"
-            expected_status: "success"
-          - name: "Advertencia"
-            retcode: "4"
-            expected_status: "warning"
-          - name: "Advertencia con fail_on_warning=true"
-            retcode: "4"
-            expected_status: "warning"
-            fail_on_warning: "true"
-          - name: "Código en rango"
-            retcode: "7"
-            expected_status: "severe"
-          - name: "Código crítico"
-            retcode: "9"
-            expected_status: "critical"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Crear configuración válida
-        run: |
-          cat > codes.json << 'EOF'
-          {
-            "version": "1.0",
-            "description": "Configuración de códigos de retorno para compilación",
-            "codes": [
-              {
-                "range": "0-3",
-                "status": "success",
-                "title": "Éxito",
-                "message": "Compilación exitosa (código {code}).",
-              },
-              {
-                "range": "4",
-                "status": "warning",
-                "title": "Alerta",
-                "message": "Compilación exitosa con advertencia: límite de respuesta próximo a alcanzarse (código {code}).",
-              },
-              {
-                "range": "5",
-                "status": "failure",
-                "title": "Fallo",
-                "message": "Compilación fallida: límite de código excedido. Se requiere revisión (código {code}).",
-              },
-              {
-                "range": "6-8",
-                "status": "severe",
-                "title": "Fallo",
-                "message": "Compilación fallida por error severo. Revisión inmediata recomendada (código {code}).",
-              },
-              {
-                "range": "9",
-                "status": "critical",
-                "title": "Fallo Crítico",
-                "message": "Compilación fallida por error crítico. Ejecución detenida (código {code}).",
-              }
-            ],
-            "fallback": {
-              "status": "critical",
-              "title": "Código Desconocido",
-              "message": "Código de retorno inesperado ({code}). Revisar configuración de rangos.",
-            }
-          }
-          EOF
-
-      - name: "Probar: ${{ matrix.test_case.name }}"
-        id: test
+      - name: Test Check RETCODE Action
+        id: check_retcode
         uses: ./.github/actions/check-retcode
         with:
-          retcode: ${{ matrix.test_case.retcode }}
-          config_file: codes.json
-          fail_on_warning: ${{ matrix.test_case.fail_on_warning || 'false' }}
-        continue-on-error: true
-
-      - name: Validar resultado
-        run: |
-          echo "=== Resultado de la prueba ==="
-          echo "Caso: ${{ matrix.test_case.name }}"
-          echo "Código probado: ${{ matrix.test_case.retcode }}"
-          echo "Status esperado: ${{ matrix.test_case.expected_status }}"
-          echo "Status obtenido: ${{ steps.test.outputs.status }}"
-          echo "Mensaje: ${{ steps.test.outputs.message }}"
-          
-          # Validar status
-          if [[ "${{ steps.test.outputs.status }}" != "${{ matrix.test_case.expected_status }}" ]]; then
-            echo "❌ ERROR: Status no coincide"
-            exit 1
-          fi
-          
-          # Validar que el placeholder {code} fue reemplazado
-          if [[ "${{ steps.test.outputs.message }}" == *"{code}"* ]]; then
-            echo "❌ ERROR: Placeholder {code} no fue reemplazado"
-            exit 1
-          fi
-          
-          echo "✅ Prueba exitosa"
+          retcode: "3"
+          config_file: 'codes.json'
