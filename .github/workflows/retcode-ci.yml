@@ -21,4 +21,4 @@ jobs:
         uses: ./.github/actions/check-retcode
         with:
           retcode: "3"
-          config_file: 'codes.json'
+          config_file: './.github/actions/check-retcode/codes.json'
