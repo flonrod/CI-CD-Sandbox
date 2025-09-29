@@ -14,9 +14,8 @@ jobs:
       matrix:
         retcode: [0, 3, 4, 5, 9, 99]
 
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Test Check RETCODE Action
@@ -25,9 +24,14 @@ jobs:
         with:
           retcode: "${{ matrix.retcode }}"
           config_file: './.github/actions/check-retcode/codes.json'
+        continue-on-error: true
 
-      - name: Print outputs
+      - name: Print RETCODE outputs
         run: |
-          echo "Status: ${{ steps.check_retcode.outputs.status }}"
-          echo "Message: ${{ steps.check_retcode.outputs.message }}"
-          echo "Title: ${{ steps.check_retcode.outputs.title }}"
+          echo "=============================="
+          echo "Testing retcode: ${{ matrix.retcode }}"
+          echo "Step outcome: ${{ steps.check_retcode.outcome }}"
+          echo "Status output: ${{ steps.check_retcode.outputs.status }}"
+          echo "Message output: ${{ steps.check_retcode.outputs.message }}"
+          echo "Title output: ${{ steps.check_retcode.outputs.title }}"
+          echo "=============================="
