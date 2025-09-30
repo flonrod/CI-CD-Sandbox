@@ -7,7 +7,8 @@ validate_retcode() {
 
   # Validar que solo contenga dígitos
   if ! [[ "$retcode" =~ ^[0-9]+$ ]]; then
-    echo "Código de retorno inválido: $retcode"
+    echo ">> Debug: retcode inválido detectado ($retcode)"   # debug
+    echo "::error::Código de retorno inválido: $retcode"
     exit 1
   fi
 
