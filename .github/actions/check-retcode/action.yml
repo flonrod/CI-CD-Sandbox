@@ -28,4 +28,6 @@ runs:
       id: check
       shell: bash
       run: |
-        bash "${{ github.action_path }}/check-retcode.sh" "${{ inputs.retcode }}" "${{ inputs.config_file }}"
+        chmod +x "${{ github.action_path }}/check-retcode.sh"
+        chmod +x "${{ github.action_path }}/validate-config.sh"
+        "${{ github.action_path }}/check-retcode.sh" "${{ inputs.retcode }}" "${{ inputs.config_file }}"
