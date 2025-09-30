@@ -63,6 +63,14 @@ set_result() {
   # Expandir placeholders en el mensaje
   message="${message//\{code\}/$RC_NUM}"
 
+  # Mostrar en consola
+  echo "------------------------------------"
+  echo "  Resultado encontrado:"
+  echo "  Status : $status"
+  echo "  Title  : $title"
+  echo "  Message: $message"
+  echo "------------------------------------"
+
   {
     printf "status=%s\n" "$status"
     printf "message=%s\n" "$message"
@@ -70,15 +78,20 @@ set_result() {
   } >> "$GITHUB_OUTPUT"
 }
 
-should_exit_success() {
-  local status="$1"
-  [[ "$status" == "success" || "$status" == "warning" ]]
-}
-
 find_matching_code() {
   local rc_num="$1"
   local config_file="$2"
 
+  exit_based_on_status() {
+    local status="$1"
+    if [[ "$status" == "success" || "$status" == "warning" ]]; then
+      return 0
+    else
+      return 1
+    fi
+  }
+
+  # Buscar coincidencia en codes[]
   while IFS= read -r config_line; do
     local range status title message
     range=$(jq -r '.range' <<<"$config_line")
@@ -88,15 +101,11 @@ find_matching_code() {
 
     if in_range "$rc_num" "$range"; then
       set_result "$status" "$message" "$title"
-      if should_exit_success "$status"; then
-        return 0
-      else
-        return 1
-      fi
+      exit_based_on_status "$status"
     fi
   done < <(jq -c '.codes[]' "$config_file")
 
-  # Fallback directo si no hubo match
+  # Si no hubo coincidencia, usar fallback (siempre falla)
   local fb_status fb_title fb_message
   fb_status=$(jq -r '.fallback.status' "$config_file")
   fb_title=$(jq -r '.fallback.title' "$config_file")
@@ -104,11 +113,7 @@ find_matching_code() {
 
   set_result "$fb_status" "$fb_message" "$fb_title"
 
-  if should_exit_success "$fb_status"; then
-    return 0
-  else
-    return 1
-  fi
+  return 1
 }
 
 # Buscar código coincidente y procesar resultado

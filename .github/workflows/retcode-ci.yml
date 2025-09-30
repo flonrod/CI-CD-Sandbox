@@ -25,13 +25,3 @@ jobs:
           retcode: "${{ matrix.retcode }}"
           config_file: './.github/actions/check-retcode/codes.json'
         continue-on-error: true
-
-      - name: Print RETCODE outputs
-        run: |
-          echo "=============================="
-          echo "Testing retcode: ${{ matrix.retcode }}"
-          echo "Step outcome: ${{ steps.check_retcode.outcome }}"
-          echo "Status output: ${{ steps.check_retcode.outputs.status }}"
-          echo "Message output: ${{ steps.check_retcode.outputs.message }}"
-          echo "Title output: ${{ steps.check_retcode.outputs.title }}"
-          echo "=============================="
