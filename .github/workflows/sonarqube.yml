@@ -31,6 +31,6 @@ jobs:
         run: |
           sonar-scanner \
             -Dsonar.projectKey=proyecto-actions \
-            -Dsonar.sources=. \
+            -Dsonar.sources=.github/actions/check-retcode \
             -Dsonar.host.url=http://135.119.196.58:9000 \
             -Dsonar.login=$SONAR_TOKEN
