@@ -7,7 +7,6 @@ on:
 
 jobs:
   sonar:
-    name: SonarQube Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -20,18 +19,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache SonarQube packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
+      - name: Download SonarQube Scanner
+        run: |
+          curl -sSLo sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+          unzip sonar-scanner.zip -d $HOME
+          echo "$HOME/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
 
-      - name: Run SonarQube analysis
+      - name: Run SonarQube Scanner
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          ./gradlew sonarqube \
+          sonar-scanner \
             -Dsonar.projectKey=proyecto-actions \
-            -Dsonar.host.url=http://135.119.196.58:9000/ \
-            -Dsonar.login=${SONAR_TOKEN}
+            -Dsonar.sources=. \
+            -Dsonar.host.url=http://135.119.196.58:9000 \
+            -Dsonar.login=$SONAR_TOKEN
