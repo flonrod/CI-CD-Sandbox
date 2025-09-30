@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        retcode: [0, 3, 4, 5, 9, 99]
+        retcode: ['s', 0, d98, 007, 20]
 
     steps:
       - name: Checkout repository
