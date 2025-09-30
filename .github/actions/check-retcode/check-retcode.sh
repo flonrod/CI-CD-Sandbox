@@ -5,11 +5,14 @@ set -euo pipefail
 validate_retcode() {
   local retcode="$1"
 
-  # Validar que el código es un número válido
-  if ! RC_NUM=$((10#$retcode)) 2>/dev/null; then
+  # Validar que solo contenga dígitos
+  if ! [[ "$retcode" =~ ^[0-9]+$ ]]; then
     echo "::error::Código de retorno inválido: $retcode"
     exit 1
   fi
+
+  # Convertir a número entero forzando base 10
+  local RC_NUM=$((10#$retcode))
 
   # Validar que es positivo o cero
   if [[ $RC_NUM -lt 0 ]]; then
