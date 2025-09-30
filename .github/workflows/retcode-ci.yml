@@ -23,5 +23,5 @@ jobs:
         uses: ./.github/actions/check-retcode
         with:
           retcode: "${{ matrix.retcode }}"
-          config_file: './.github/actions/check-retcode/codes.json'
+          config_file: './.github/actions/check-retcode/test/codes.json'
         continue-on-error: true
