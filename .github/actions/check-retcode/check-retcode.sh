@@ -14,12 +14,6 @@ validate_retcode() {
   # Convertir a número entero forzando base 10
   local RC_NUM=$((10#$retcode))
 
-  # Validar que es positivo o cero
-  if [[ $RC_NUM -lt 0 ]]; then
-    >&2 echo "::error::Código de retorno debe ser positivo o cero: $RC_NUM"
-    exit 1
-  fi
-
   # Devolver el código validado
   echo "$RC_NUM"
 }
