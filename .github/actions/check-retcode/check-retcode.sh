@@ -101,8 +101,13 @@ find_matching_code() {
 
     if in_range "$rc_num" "$range"; then
       set_result "$status" "$message" "$title"
-      exit_based_on_status "$status"
+      if exit_based_on_status "$status"; then
+        return 0
+      else
+        return 1
+      fi
     fi
+
   done < <(jq -c '.codes[]' "$config_file")
 
   # Si no hubo coincidencia, usar fallback (siempre falla)
