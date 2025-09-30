@@ -7,7 +7,6 @@ validate_retcode() {
 
   # Validar que solo contenga dígitos
   if ! [[ "$retcode" =~ ^[0-9]+$ ]]; then
-    >&2 echo ">> Debug: retcode inválido detectado ($retcode)"
     >&2 echo "::error::Código de retorno inválido: $retcode"
     exit 1
   fi
@@ -17,7 +16,7 @@ validate_retcode() {
 
   # Validar que es positivo o cero
   if [[ $RC_NUM -lt 0 ]]; then
-    echo "::error::Código de retorno debe ser positivo o cero: $RC_NUM"
+    >&2 echo "::error::Código de retorno debe ser positivo o cero: $RC_NUM"
     exit 1
   fi
 
