@@ -37,6 +37,9 @@ validate_config_and_structure() {
   local index=0
 
   while IFS= read -r item; do
+    echo "DEBUG RAW: Processing index $index"
+    echo "DEBUG RAW: Item length: ${#item}"
+    echo "DEBUG RAW: First 100 chars: ${item:0:100}"
     echo "Validando elemento $index..."
     
     # Verificar campo 'range'
