@@ -2,8 +2,7 @@
   {
     "range": "0-3",
     "status": "success",
-    "message": "Compilación exitosa.",
-    "should-fail": false
+    "message": "Compilación exitosa."
   },
   {
     "range": "4",
