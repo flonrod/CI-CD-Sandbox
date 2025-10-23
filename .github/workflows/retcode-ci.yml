@@ -16,6 +16,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug codes.json
+        run: |
+          echo "Contenido real de codes.json leído por el runner:"
+          cat ./.github/actions/check-retcode/codes.json
+
       - name: success status
         uses: ./.github/actions/check-retcode
         with:
