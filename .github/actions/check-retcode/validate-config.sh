@@ -37,6 +37,7 @@ validate_config_and_structure() {
   local index=0
 
   while IFS= read -r item; do
+    echo "Validando elemento $index: $item"
     # Verificar campo 'range'
     if ! jq -e '.range' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'range'"
@@ -66,6 +67,7 @@ validate_config_and_structure() {
 
   if [[ "$validation_errors" -gt 0 ]]; then
     echo "::error::Se encontraron $validation_errors errores de validación en la estructura del JSON"
+    echo "::endgroup::"
     exit 1
   fi
   
