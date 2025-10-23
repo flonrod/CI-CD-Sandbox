@@ -83,6 +83,9 @@ validate_config_and_structure() {
     ((index++))
   done < <(jq -c '.[]' "$config_file")
 
+  echo "DEBUG: Total validation_errors: $validation_errors"
+  echo "DEBUG: Total elementos procesados: $index"
+  
   if [[ "$validation_errors" -gt 0 ]]; then
     echo "::error::Se encontraron $validation_errors errores de validación en la estructura del JSON"
     echo "::endgroup::"
