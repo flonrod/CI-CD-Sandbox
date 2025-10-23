@@ -37,7 +37,8 @@ validate_config_and_structure() {
   local index=0
 
   while IFS= read -r item; do
-    echo "Validando elemento $index: $item"
+    echo "Validando elemento $index..."
+    
     # Verificar campo 'range'
     if ! jq -e '.range' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'range'"
@@ -59,6 +60,10 @@ validate_config_and_structure() {
     # Verificar campo 'should-fail'
     if ! jq -e 'has("should-fail") and (."should-fail" | type == "boolean")' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El campo 'should-fail' en índice $index es obligatorio y debe ser booleano (true/false)"
+      echo "DEBUG: Item completo: $item"
+      echo "DEBUG: has should-fail: $(jq 'has("should-fail")' <<<"$item")"
+      echo "DEBUG: should-fail value: $(jq '."should-fail"' <<<"$item" 2>&1 || echo "N/A")"
+      echo "DEBUG: should-fail type: $(jq '."should-fail" | type' <<<"$item" 2>&1 || echo "N/A")"
       ((validation_errors++))
     fi
 
@@ -71,7 +76,7 @@ validate_config_and_structure() {
     exit 1
   fi
   
-  echo "Estructura JSON validada correctamente"
+  echo "Estructura JSON validada correctamente ($index elementos validados)"
   echo "::endgroup::"
 }
 
