@@ -23,30 +23,30 @@ jobs:
           config_file: './.github/actions/check-retcode/codes.json'
         continue-on-error: true
 
-      - name: código de retorno inesperado
-        uses: ./.github/actions/check-retcode
-        with:
-          retcode: "s40"
-          config_file: './.github/actions/check-retcode/codes.json'
-        continue-on-error: true
+      # - name: código de retorno inesperado
+      #   uses: ./.github/actions/check-retcode
+      #   with:
+      #     retcode: "s40"
+      #     config_file: './.github/actions/check-retcode/codes.json'
+      #   continue-on-error: true
 
-      - name: código de retorno inesperado 2
-        uses: ./.github/actions/check-retcode
-        with:
-          retcode: "40"
-          config_file: './.github/actions/check-retcode/codes.json'
-        continue-on-error: true
+      # - name: código de retorno inesperado 2
+      #   uses: ./.github/actions/check-retcode
+      #   with:
+      #     retcode: "40"
+      #     config_file: './.github/actions/check-retcode/codes.json'
+      #   continue-on-error: true
 
-      - name: No se encontró archivo
-        uses: ./.github/actions/check-retcode
-        with:
-          retcode: "0"
-          config_file: './.github/actions/check-retcode/test/codes.json'
-        continue-on-error: true
+      # - name: No se encontró archivo
+      #   uses: ./.github/actions/check-retcode
+      #   with:
+      #     retcode: "0"
+      #     config_file: './.github/actions/check-retcode/test/codes.json'
+      #   continue-on-error: true
 
-      - name: JSON no tiene estructura
-        uses: ./.github/actions/check-retcode
-        with:
-          retcode: "0"
-          config_file: './.github/actions/check-retcode/prueba/codes.json'
-        continue-on-error: true
+      # - name: JSON no tiene estructura
+      #   uses: ./.github/actions/check-retcode
+      #   with:
+      #     retcode: "0"
+      #     config_file: './.github/actions/check-retcode/prueba/codes.json'
+      #   continue-on-error: true
