@@ -20,7 +20,8 @@
   {
     "range": "6-8",
     "status": "severe",
-    "message": "Compilación fallida por error severo. Revisión inmediata recomendada."
+    "message": "Compilación fallida por error severo. Revisión inmediata recomendada.",
+    "should-fail": true
   },
   {
     "range": "9",
