@@ -37,55 +37,33 @@ validate_config_and_structure() {
   local index=0
 
   while IFS= read -r item; do
-    echo "Validando elemento $index..."
-    
     # Verificar campo 'range'
-    echo "  - Verificando campo 'range'..."
     if ! jq -e '.range' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'range'"
       ((validation_errors++))
-    else
-      echo "  - Campo 'range' OK"
     fi
 
     # Verificar campo 'status'
-    echo "  - Verificando campo 'status'..."
     if ! jq -e '.status' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'status'"
       ((validation_errors++))
-    else
-      echo "  - Campo 'status' OK"
     fi
 
     # Verificar campo 'message'
-    echo "  - Verificando campo 'message'..."
     if ! jq -e '.message' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'message'"
       ((validation_errors++))
-    else
-      echo "  - Campo 'message' OK"
     fi
 
     # Verificar campo 'should-fail'
-    echo "  - Verificando campo 'should-fail'..."
     if ! jq -e 'has("should-fail") and (."should-fail" | type == "boolean")' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El campo 'should-fail' en índice $index es obligatorio y debe ser booleano (true/false)"
-      echo "DEBUG: Item completo: $item"
-      echo "DEBUG: has should-fail: $(jq 'has("should-fail")' <<<"$item")"
-      echo "DEBUG: should-fail value: $(jq '."should-fail"' <<<"$item" 2>&1 || echo "N/A")"
-      echo "DEBUG: should-fail type: $(jq '."should-fail" | type' <<<"$item" 2>&1 || echo "N/A")"
       ((validation_errors++))
-    else
-      echo "  - Campo 'should-fail' OK"
     fi
 
-    echo "Elemento $index validado correctamente"
     ((index++))
   done < <(jq -c '.[]' "$config_file") || true
 
-  echo "DEBUG: Total validation_errors: $validation_errors"
-  echo "DEBUG: Total elementos procesados: $index"
-  
   if [[ "$validation_errors" -gt 0 ]]; then
     echo "::error::Se encontraron $validation_errors errores de validación en la estructura del JSON"
     echo "::endgroup::"
