@@ -56,17 +56,9 @@ validate_config_and_structure() {
     fi
 
     # Verificar campo 'should-fail'
-    if ! jq -e '."should-fail"' <<<"$item" >/dev/null 2>&1; then
-      echo "::error::El elemento en índice $index no contiene el campo 'should-fail'"
+    if ! jq -e 'has("should-fail") and (."should-fail" | type == "boolean")' <<<"$item" >/dev/null 2>&1; then
+      echo "::error::El campo 'should-fail' en índice $index es obligatorio y debe ser booleano (true/false)"
       ((validation_errors++))
-    else
-      # Verificar que 'should-fail' sea booleano
-      local should_fail_type
-      should_fail_type=$(jq -r '."should-fail" | type' <<<"$item")
-      if [[ "$should_fail_type" != "boolean" ]]; then
-        echo "::error::El campo 'should-fail' en índice $index debe ser booleano (true/false), encontrado: $should_fail_type"
-        ((validation_errors++))
-      fi
     fi
 
     ((index++))
