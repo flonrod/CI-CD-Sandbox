@@ -81,7 +81,7 @@ validate_config_and_structure() {
 
     echo "Elemento $index validado correctamente"
     ((index++))
-  done < <(jq -c '.[]' "$config_file")
+  done < <(jq -c '.[]' "$config_file") || true
 
   echo "DEBUG: Total validation_errors: $validation_errors"
   echo "DEBUG: Total elementos procesados: $index"
