@@ -37,30 +37,37 @@ validate_config_and_structure() {
   local index=0
 
   while IFS= read -r item; do
-    echo "DEBUG RAW: Processing index $index"
-    echo "DEBUG RAW: Item length: ${#item}"
-    echo "DEBUG RAW: First 100 chars: ${item:0:100}"
     echo "Validando elemento $index..."
     
     # Verificar campo 'range'
+    echo "  - Verificando campo 'range'..."
     if ! jq -e '.range' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'range'"
       ((validation_errors++))
+    else
+      echo "  - Campo 'range' OK"
     fi
 
     # Verificar campo 'status'
+    echo "  - Verificando campo 'status'..."
     if ! jq -e '.status' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'status'"
       ((validation_errors++))
+    else
+      echo "  - Campo 'status' OK"
     fi
 
     # Verificar campo 'message'
+    echo "  - Verificando campo 'message'..."
     if ! jq -e '.message' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El elemento en índice $index no contiene el campo 'message'"
       ((validation_errors++))
+    else
+      echo "  - Campo 'message' OK"
     fi
 
     # Verificar campo 'should-fail'
+    echo "  - Verificando campo 'should-fail'..."
     if ! jq -e 'has("should-fail") and (."should-fail" | type == "boolean")' <<<"$item" >/dev/null 2>&1; then
       echo "::error::El campo 'should-fail' en índice $index es obligatorio y debe ser booleano (true/false)"
       echo "DEBUG: Item completo: $item"
@@ -68,8 +75,11 @@ validate_config_and_structure() {
       echo "DEBUG: should-fail value: $(jq '."should-fail"' <<<"$item" 2>&1 || echo "N/A")"
       echo "DEBUG: should-fail type: $(jq '."should-fail" | type' <<<"$item" 2>&1 || echo "N/A")"
       ((validation_errors++))
+    else
+      echo "  - Campo 'should-fail' OK"
     fi
 
+    echo "Elemento $index validado correctamente"
     ((index++))
   done < <(jq -c '.[]' "$config_file")
 
