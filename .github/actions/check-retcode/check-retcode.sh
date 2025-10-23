@@ -1,13 +1,13 @@
 #!/bin/bash
 
 set -euo pipefail
-#prueb pr
+
 validate_retcode() {
   local retcode="$1"
 
   # Validar que solo contenga dígitos
   if ! [[ "$retcode" =~ ^[0-9]+$ ]]; then
-    >&2 echo "::error::Código de retorno inválido: $retcode"
+    >&2 echo "::error::Código de retorno inválido: $retcode. Solo se permiten valores numéricos."
     exit 1
   fi
 
@@ -55,7 +55,6 @@ in_range() {
 set_result() {
   local status="$1"
   local message="$2"
-  local title="$3"
 
   # Expandir placeholders en el mensaje
   message="${message//\{code\}/$RC_NUM}"
@@ -64,14 +63,12 @@ set_result() {
   echo "------------------------------------"
   echo "  Resultado encontrado:"
   echo "  Status : $status"
-  echo "  Title  : $title"
   echo "  Message: $message"
   echo "------------------------------------"
 
   {
     printf "status=%s\n" "$status"
     printf "message=%s\n" "$message"
-    printf "title=%s\n" "$title"
   } >> "$GITHUB_OUTPUT"
 }
 
@@ -79,42 +76,31 @@ find_matching_code() {
   local rc_num="$1"
   local config_file="$2"
 
-  exit_based_on_status() {
-    local status="$1"
-    if [[ "$status" == "success" || "$status" == "warning" ]]; then
-      return 0
-    else
-      return 1
-    fi
-  }
-
-  # Buscar coincidencia en codes[]
+  # Buscar coincidencia en el array
   while IFS= read -r config_line; do
-    local range status title message
+    local range status message should_fail
     range=$(jq -r '.range' <<<"$config_line")
     status=$(jq -r '.status' <<<"$config_line")
-    title=$(jq -r '.title' <<<"$config_line")
     message=$(jq -r '.message' <<<"$config_line")
+    should_fail=$(jq -r '."should-fail"' <<<"$config_line")
 
     if in_range "$rc_num" "$range"; then
-      set_result "$status" "$message" "$title"
-      if exit_based_on_status "$status"; then
+      set_result "$status" "$message"
+      
+      # Usar should-fail para determinar el exit code
+      if [[ "$should_fail" == "false" ]]; then
         return 0
       else
         return 1
       fi
     fi
 
-  done < <(jq -c '.codes[]' "$config_file")
+  done < <(jq -c '.[]' "$config_file")
 
-  # Si no hubo coincidencia, usar fallback (siempre falla)
-  local fb_status fb_title fb_message
-  fb_status=$(jq -r '.fallback.status' "$config_file")
-  fb_title=$(jq -r '.fallback.title' "$config_file")
-  fb_message=$(jq -r '.fallback.message' "$config_file")
-
-  set_result "$fb_status" "$fb_message" "$fb_title"
-
+  # Si no hubo coincidencia, código inesperado
+  echo "::error::Código de retorno inesperado: $rc_num. No se encontró en los rangos configurados."
+  set_result "critical" "Código de retorno inesperado ($rc_num). Revisar configuración de rangos."
+  
   return 1
 }
 

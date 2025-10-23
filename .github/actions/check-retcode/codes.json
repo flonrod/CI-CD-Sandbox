@@ -1,41 +1,32 @@
-{
-  "version": "1.0",
-  "description": "Configuración de códigos de retorno para compilación",
-  "codes": [
-    {
-      "range": "0-3",
-      "status": "success",
-      "title": "Éxito",
-      "message": "Compilación exitosa."
-    },
-    {
-      "range": "4",
-      "status": "warning",
-      "title": "Alerta",
-      "message": "Compilación exitosa con advertencia: límite de respuesta próximo a alcanzarse."
-    },
-    {
-      "range": "5",
-      "status": "failure",
-      "title": "Fallo",
-      "message": "Compilación fallida: límite de código excedido. Se requiere revisión."
-    },
-    {
-      "range": "6-8",
-      "status": "severe",
-      "title": "Fallo",
-      "message": "Compilación fallida por error severo. Revisión inmediata recomendada."
-    },
-    {
-      "range": "9",
-      "status": "critical",
-      "title": "Fallo Crítico",
-      "message": "Compilación fallida por error crítico. Ejecución detenida."
-    }
-  ],
-  "fallback": {
+[
+  {
+    "range": "0-3",
+    "status": "success",
+    "message": "Compilación exitosa.",
+    "should-fail": false
+  },
+  {
+    "range": "4",
+    "status": "warning",
+    "message": "Compilación exitosa con advertencia: límite de respuesta próximo a alcanzarse.",
+    "should-fail": false
+  },
+  {
+    "range": "5",
+    "status": "failure",
+    "message": "Compilación fallida: límite de código excedido. Se requiere revisión.",
+    "should-fail": true
+  },
+  {
+    "range": "6-8",
+    "status": "severe",
+    "message": "Compilación fallida por error severo. Revisión inmediata recomendada.",
+    "should-fail": true
+  },
+  {
+    "range": "9",
     "status": "critical",
-    "title": "Código Desconocido",
-    "message": "Código de retorno inesperado ({code}). Revisar configuración de rangos."
+    "message": "Compilación fallida por error crítico. Ejecución detenida.",
+    "should-fail": true
   }
-}
+]
