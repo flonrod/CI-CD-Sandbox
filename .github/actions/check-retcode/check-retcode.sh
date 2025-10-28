@@ -105,8 +105,4 @@ find_matching_code() {
 }
 
 # Buscar código coincidente y procesar resultado
-if find_matching_code "$RC_NUM" "$CONFIG_FILE"; then
-  exit 0
-else
-  exit 1
-fi
+find_matching_code "$RC_NUM" "$CONFIG_FILE"
